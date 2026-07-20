@@ -11,6 +11,7 @@ from sqlalchemy import (
     Index,
     PrimaryKeyConstraint,
     String,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -56,7 +57,12 @@ class Device(Base):
     serial_number: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[DeviceStatus] = mapped_column(
-        Enum(DeviceStatus, name="device_status", native_enum=True),
+        Enum(
+            DeviceStatus,
+            name="device_status",
+            native_enum=True,
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
         nullable=False,
         server_default=DeviceStatus.ACTIVE.value,
     )
@@ -92,6 +98,7 @@ class SortingEvent(Base):
         CheckConstraint(
             "confidence >= 0 AND confidence <= 1", name="ck_sorting_events_confidence_range"
         ),
+        UniqueConstraint("event_id", "occurred_at", name="ux_sorting_events_event_id_occurred_at"),
         Index("ix_sorting_events_device_id_occurred_at", "device_id", "occurred_at"),
         Index("ix_sorting_events_facility_id_occurred_at", "facility_id", "occurred_at"),
         {"postgresql_partition_by": "RANGE (occurred_at)"},
@@ -110,6 +117,7 @@ class SortingEvent(Base):
     material_type: Mapped[str] = mapped_column(String(64), nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     payload: Mapped[dict | None] = mapped_column(JSONB)
+    event_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

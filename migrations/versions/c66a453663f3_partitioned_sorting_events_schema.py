@@ -91,6 +91,7 @@ def upgrade() -> None:
             material_type VARCHAR(64) NOT NULL,
             confidence FLOAT NOT NULL,
             payload JSONB,
+            event_id UUID,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
             CONSTRAINT pk_sorting_events PRIMARY KEY (id, occurred_at),
             CONSTRAINT ck_sorting_events_confidence_range
@@ -98,7 +99,9 @@ def upgrade() -> None:
             CONSTRAINT fk_sorting_events_device_id
                 FOREIGN KEY (device_id) REFERENCES devices (id) ON DELETE RESTRICT,
             CONSTRAINT fk_sorting_events_facility_id
-                FOREIGN KEY (facility_id) REFERENCES facilities (id) ON DELETE RESTRICT
+                FOREIGN KEY (facility_id) REFERENCES facilities (id) ON DELETE RESTRICT,
+            CONSTRAINT ux_sorting_events_event_id_occurred_at
+                UNIQUE (event_id, occurred_at)
         ) PARTITION BY RANGE (occurred_at)
         """
     )
