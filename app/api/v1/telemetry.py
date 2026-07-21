@@ -9,6 +9,7 @@ from app.exceptions import DeviceNotFoundError
 from app.models import Device
 from app.repositories.telemetry import insert_sorting_event
 from app.schemas import ErrorResponse, SortingEventCreate, SortingEventRead
+from app.streaming import broadcaster
 
 router = APIRouter()
 
@@ -39,4 +40,9 @@ async def ingest_sorting_event(
 
     event, created = await insert_sorting_event(db, payload, facility_id=device.facility_id)
     response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-    return SortingEventRead.model_validate(event)
+    event_read = SortingEventRead.model_validate(event)
+
+    if created:
+        await broadcaster.publish(event_read.model_dump(mode="json"))
+
+    return event_read

@@ -56,3 +56,8 @@ class Broadcaster:
     @property
     def subscriber_count(self) -> int:
         return len(self._subscribers)
+
+
+# Process-wide singleton: dashboard websocket clients subscribe to this, and
+# ingestion paths publish telemetry updates to it.
+broadcaster = Broadcaster()
