@@ -24,3 +24,23 @@ function getTelemetryStreamUrl(): string {
 }
 
 export const TELEMETRY_STREAM_URL = getTelemetryStreamUrl()
+
+/**
+ * Same dev/prod fallback strategy as the stream URL above, but for plain
+ * HTTP requests (e.g. fetching per-event image metadata).
+ */
+function getApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_BASE_URL
+  if (envUrl) {
+    return envUrl
+  }
+
+  const isDev = import.meta.env.DEV
+  if (isDev) {
+    return "http://localhost:8000"
+  }
+
+  return window.location.origin
+}
+
+export const API_BASE_URL = getApiBaseUrl()
