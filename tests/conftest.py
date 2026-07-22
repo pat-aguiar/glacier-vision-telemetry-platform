@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
+from datetime import datetime, timezone
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -64,3 +65,26 @@ async def device(facility: Facility) -> AsyncIterator[Device]:
         await session.execute(delete(SortingEvent).where(SortingEvent.device_id == dev.id))
         await session.execute(delete(Device).where(Device.id == dev.id))
         await session.commit()
+
+
+@pytest.fixture
+async def sorting_event(device: Device) -> SortingEvent:
+    """A sorting event persisted directly via the ORM.
+
+    Cleaned up by the `device` fixture's teardown (it deletes all
+    SortingEvent rows for that device_id), so no separate teardown here.
+    """
+    session_factory = get_sessionmaker()
+    async with session_factory() as session:
+        event = SortingEvent(
+            occurred_at=datetime.now(timezone.utc),
+            device_id=device.id,
+            facility_id=device.facility_id,
+            material_type="PET",
+            confidence=0.8,
+            event_id=uuid.uuid4(),
+        )
+        session.add(event)
+        await session.commit()
+        await session.refresh(event)
+    return event
