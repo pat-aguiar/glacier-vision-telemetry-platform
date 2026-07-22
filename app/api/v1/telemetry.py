@@ -1,14 +1,22 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Response, status
+import uuid
+
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
-from app.exceptions import DeviceNotFoundError
+from app.exceptions import DeviceNotFoundError, SortingEventNotFoundError
+from app.mock_vision import MOCK_IMAGE_PATH, generate_mock_bounding_boxes
 from app.models import Device
-from app.repositories.telemetry import insert_sorting_event
-from app.schemas import ErrorResponse, SortingEventCreate, SortingEventRead
+from app.repositories.telemetry import get_sorting_event_by_id, insert_sorting_event
+from app.schemas import (
+    ErrorResponse,
+    SortingEventCreate,
+    SortingEventRead,
+    TelemetryEventImageRead,
+)
 from app.streaming import broadcaster
 
 router = APIRouter()
@@ -46,3 +54,29 @@ async def ingest_sorting_event(
         await broadcaster.publish(event_read.model_dump(mode="json"))
 
     return event_read
+
+
+@router.get(
+    "/events/{event_id}/image",
+    response_model=TelemetryEventImageRead,
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "No sorting event exists with the given id.",
+        },
+    },
+)
+async def get_sorting_event_image(
+    event_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> TelemetryEventImageRead:
+    event = await get_sorting_event_by_id(db, event_id)
+    if event is None:
+        raise SortingEventNotFoundError(str(event_id))
+
+    image_url = str(request.url_for("static", path=MOCK_IMAGE_PATH))
+    return TelemetryEventImageRead(
+        image_url=image_url,
+        bounding_boxes=generate_mock_bounding_boxes(event_id),
+    )

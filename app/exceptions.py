@@ -44,6 +44,13 @@ class DeviceNotFoundError(AppError):
         super().__init__(f"No device found with device_id '{device_id}'.")
 
 
+class SortingEventNotFoundError(NotFoundError):
+    error_code = "sorting_event_not_found"
+
+    def __init__(self, event_id: str) -> None:
+        super().__init__(f"No sorting event found with id '{event_id}'.")
+
+
 class ConflictError(AppError):
     status_code = status.HTTP_409_CONFLICT
     error_code = "conflict"

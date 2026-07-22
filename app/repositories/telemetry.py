@@ -47,3 +47,14 @@ async def insert_sorting_event(
         )
     )
     return existing.scalar_one(), False
+
+
+async def get_sorting_event_by_id(db: AsyncSession, event_id: uuid.UUID) -> SortingEvent | None:
+    """Look up a sorting event by its id, or None if no such event exists.
+
+    `id` isn't the partition key on this table, so this scans every
+    partition rather than pruning to one -- acceptable for a single-row
+    lookup, but not a pattern to repeat for bulk queries.
+    """
+    result = await db.execute(select(SortingEvent).where(SortingEvent.id == event_id))
+    return result.scalar_one_or_none()
