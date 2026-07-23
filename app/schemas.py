@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.functional_validators import AfterValidator
 
 from app.models import DeviceStatus
@@ -91,6 +91,40 @@ class SortingEventRead(SortingEventBase, ORMModel):
     device_id: uuid.UUID
     facility_id: uuid.UUID
     created_at: TzAwareDatetime
+
+
+# --- Telemetry Event Image ---------------------------------------------------
+
+
+class BoundingBox(BaseModel):
+    """A detection box normalized to the captured frame's dimensions.
+
+    Coordinates are fractions of image width/height (0.0 = left/top edge,
+    1.0 = right/bottom edge), so the box stays valid regardless of the
+    original image's resolution.
+    """
+
+    label: str = Field(max_length=100)
+    confidence: float = Field(ge=0.0, le=1.0)
+    x_min: float = Field(ge=0.0, le=1.0)
+    y_min: float = Field(ge=0.0, le=1.0)
+    x_max: float = Field(ge=0.0, le=1.0)
+    y_max: float = Field(ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def _check_ordering(self) -> BoundingBox:
+        if self.x_max <= self.x_min:
+            raise ValueError("x_max must be greater than x_min")
+        if self.y_max <= self.y_min:
+            raise ValueError("y_max must be greater than y_min")
+        return self
+
+
+class TelemetryEventImageRead(BaseModel):
+    """Read model for a sorting event's captured frame and detection overlay."""
+
+    image_url: str
+    bounding_boxes: list[BoundingBox] = Field(default_factory=list)
 
 
 # --- Error Response Schemas -------------------------------------------------
