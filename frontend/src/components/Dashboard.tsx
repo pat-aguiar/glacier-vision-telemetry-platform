@@ -1,10 +1,11 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useWebSocketStream, type ConnectionStatus } from "../hooks/useWebSocketStream"
 import { useSlidingWindowRef } from "../hooks/useSlidingWindowRef"
 import { useThrottledState } from "../hooks/useThrottledState"
 import { StatTiles } from "./StatTiles"
 import { RealTimeChart } from "./RealTimeChart"
 import { EventLogTable } from "./EventLogTable"
+import { ImageInspector } from "./ImageInspector"
 import { TELEMETRY_STREAM_URL } from "../config"
 import type { TelemetryEvent } from "../telemetry/types"
 
@@ -35,6 +36,7 @@ function ConnectionBadge({ status }: { status: ConnectionStatus }) {
 }
 
 export function Dashboard() {
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
   const buffer = useSlidingWindowRef<TelemetryEvent>(WINDOW_MS)
   const [events, setEvents] = useThrottledState<readonly TelemetryEvent[]>(
     buffer.getAll(),
@@ -81,8 +83,14 @@ export function Dashboard() {
         <h2 className="mb-3 text-sm font-medium text-slate-500 dark:text-slate-400">
           Recent events
         </h2>
-        <EventLogTable events={events} />
+        <EventLogTable
+          events={events}
+          selectedEventId={selectedEventId}
+          onSelectEvent={(event) => setSelectedEventId(event.id)}
+        />
       </div>
+
+      <ImageInspector eventId={selectedEventId} onClose={() => setSelectedEventId(null)} />
     </div>
   )
 }
