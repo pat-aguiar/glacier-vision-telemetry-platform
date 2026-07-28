@@ -61,3 +61,7 @@ class Broadcaster:
 # Process-wide singleton: dashboard websocket clients subscribe to this, and
 # ingestion paths publish telemetry updates to it.
 broadcaster = Broadcaster()
+
+
+def get_broadcaster() -> Broadcaster:
+    return broadcaster
