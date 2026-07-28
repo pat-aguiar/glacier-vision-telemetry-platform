@@ -1,7 +1,7 @@
 services:
-  postgres:
+  db:
     image: postgres:16
-    container_name: glacier-vision-postgres
+    container_name: glacier-vision-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: telemetry
@@ -16,6 +16,38 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: glacier-vision-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://telemetry:telemetry@db:5432/telemetry
+      CORS_ALLOW_ORIGINS: '["http://localhost:3000"]'
+
+  frontend:
+    # No VITE_API_BASE_URL / VITE_TELEMETRY_STREAM_URL build args: nginx
+    # reverse-proxies /api/ and /static/ to the backend on the same origin
+    # the page is served from, and config.ts's runtime fallback already
+    # derives the correct same-origin URLs from window.location when these
+    # are unset in a production build. Baking in an absolute host here would
+    # only work when accessed via this exact hostname/port -- see the
+    # docker-compose.yml git history for why that broke portability.
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: glacier-vision-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
 
 volumes:
   postgres_data:
