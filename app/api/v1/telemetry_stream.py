@@ -3,10 +3,11 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 
+from app.api.deps import get_broadcaster
 from app.config import get_settings
-from app.streaming import broadcaster
+from app.streaming import Broadcaster
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,10 @@ router = APIRouter()
 
 
 @router.websocket("/stream")
-async def stream_telemetry(websocket: WebSocket) -> None:
+async def stream_telemetry(
+    websocket: WebSocket,
+    broadcaster: Broadcaster = Depends(get_broadcaster),
+) -> None:
     """Push a live feed of telemetry updates to a dashboard client.
 
     Starlette's CORSMiddleware only applies to HTTP requests, not websocket
