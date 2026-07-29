@@ -23,10 +23,13 @@ async def stream_telemetry(
 
     Starlette's CORSMiddleware only applies to HTTP requests, not websocket
     handshakes, so the allowed-origins check has to be done manually here.
+    A missing Origin header is rejected too, not just a mismatched one --
+    real browsers always send it on a WS handshake, so its absence means
+    the client isn't a browser page we've allowed via CORS at all.
     """
     settings = get_settings()
     origin = websocket.headers.get("origin")
-    if origin is not None and origin not in settings.cors_allow_origins:
+    if origin is None or origin not in settings.cors_allow_origins:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 

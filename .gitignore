@@ -9,6 +9,7 @@ dist/
 venv/
 
 .env
+docker-compose.override.yml
 
 .pytest_cache/
 .ruff_cache/

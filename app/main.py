@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.exceptions import register_exception_handlers
 from app.api.v1.router import api_router
+from app.middleware import BodySizeLimitMiddleware
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -46,6 +47,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Added after CORS so it wraps outermost -- oversized bodies get
+    # rejected before any other middleware or app logic runs.
+    app.add_middleware(BodySizeLimitMiddleware)
 
     register_exception_handlers(app)
     app.include_router(api_router, prefix="/api/v1")

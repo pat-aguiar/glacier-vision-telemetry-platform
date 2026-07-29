@@ -41,6 +41,15 @@ async def test_disallowed_origin_is_rejected_at_handshake() -> None:
         assert exc_info.value.code == 1008
 
 
+async def test_missing_origin_is_rejected_at_handshake() -> None:
+    async with AsyncClient(transport=ASGIWebSocketTransport(app=app), base_url="http://testserver") as ws_client:
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            async with aconnect_ws(STREAM_ENDPOINT, ws_client):
+                pass
+
+        assert exc_info.value.code == 1008
+
+
 async def test_successful_insert_is_delivered_to_subscriber(device: Device) -> None:
     async with AsyncClient(transport=ASGIWebSocketTransport(app=app), base_url="http://testserver") as ws_client:
         async with aconnect_ws(

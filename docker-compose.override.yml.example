@@ -1,0 +1,13 @@
+# Copy this file to docker-compose.override.yml (gitignored, not committed)
+# to bind Postgres to a local port for direct access -- psql, a GUI client,
+# running the test suite or ad hoc scripts outside Docker, etc.
+#
+# Bound to 127.0.0.1 specifically, not left unspecified (which would default
+# to 0.0.0.0 and expose the DB on every network interface, not just
+# loopback). docker-compose.yml intentionally does not publish this port by
+# default, so the database is never publicly exposed unless a developer
+# opts in locally via this file.
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
