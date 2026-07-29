@@ -5,10 +5,8 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: telemetry
-      POSTGRES_PASSWORD: telemetry
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file (see .env.example)}
       POSTGRES_DB: telemetry
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,7 +25,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://telemetry:telemetry@db:5432/telemetry
+      DATABASE_URL: postgresql+asyncpg://telemetry:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file (see .env.example)}@db:5432/telemetry
       CORS_ALLOW_ORIGINS: '["http://localhost:3000"]'
 
   frontend:

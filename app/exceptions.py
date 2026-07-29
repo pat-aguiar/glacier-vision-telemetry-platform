@@ -104,5 +104,8 @@ async def validation_exception_handler(
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    app.add_exception_handler(AppError, app_error_handler)
-    app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(AppError, app_error_handler)  # pyright: ignore[reportArgumentType]
+    app.add_exception_handler(
+        RequestValidationError,
+        validation_exception_handler,  # pyright: ignore[reportArgumentType]
+    )
