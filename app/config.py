@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     sql_echo: bool = False
     cors_allow_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
+    edge_api_key: str
+    dashboard_access_token: str
+    telemetry_events_rate_limit: str = "100/minute"
+
 
 @lru_cache
 def get_settings() -> Settings:

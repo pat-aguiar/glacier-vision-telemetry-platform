@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,20 @@ class UnauthorizedError(AppError):
     error_code = "unauthorized"
 
 
+class InvalidApiKeyError(UnauthorizedError):
+    error_code = "invalid_api_key"
+
+    def __init__(self) -> None:
+        super().__init__("A valid X-API-Key header is required.")
+
+
+class InvalidDashboardTokenError(UnauthorizedError):
+    error_code = "invalid_dashboard_token"
+
+    def __init__(self) -> None:
+        super().__init__("A valid dashboard access token is required.")
+
+
 class ForbiddenError(AppError):
     status_code = status.HTTP_403_FORBIDDEN
     error_code = "forbidden"
@@ -77,7 +92,9 @@ def _envelope(code: str, message: str, details: Any = None) -> dict[str, Any]:
     return {"error": {"code": code, "message": message, "details": details}}
 
 
-async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+async def app_error_handler(request: Request, exc: AppError | Exception) -> JSONResponse:
+    assert isinstance(exc, AppError)
+
     logger.warning("app_error code=%s path=%s", exc.error_code, request.url.path)
     return JSONResponse(
         status_code=exc.status_code,
@@ -86,8 +103,11 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
 
 
 async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
+    request: Request, exc: RequestValidationError | Exception
 ) -> JSONResponse:
+    assert isinstance(exc, RequestValidationError)
+
+
     details = [
         {"field": ".".join(str(p) for p in err["loc"] if p != "body"), "message": err["msg"]}
         for err in exc.errors()
@@ -103,9 +123,28 @@ async def validation_exception_handler(
     )
 
 
+async def rate_limit_exceeded_handler(
+    request: Request, exc: RateLimitExceeded | Exception
+) -> JSONResponse:
+    assert isinstance(exc, RateLimitExceeded)
+
+    logger.warning("rate_limit_exceeded path=%s", request.url.path)
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content=_envelope(
+            "rate_limit_exceeded",
+            f"Rate limit exceeded: {exc.detail}",
+        ),
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
-    app.add_exception_handler(AppError, app_error_handler)  # pyright: ignore[reportArgumentType]
+    app.add_exception_handler(AppError, app_error_handler)
     app.add_exception_handler(
         RequestValidationError,
-        validation_exception_handler,  # pyright: ignore[reportArgumentType]
+        validation_exception_handler,
+    )
+    app.add_exception_handler(
+        RateLimitExceeded,
+        rate_limit_exceeded_handler,
     )
