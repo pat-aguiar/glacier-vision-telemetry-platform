@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.api.deps import get_telemetry_service, verify_dashboard_token, verify_edge_api_key
 from app.mock_vision import MOCK_IMAGE_PATH
+from app.rate_limit import limiter, telemetry_events_rate_limit
 from app.schemas import (
     ErrorResponse,
     SortingEventCreate,
@@ -37,8 +38,10 @@ router = APIRouter()
         },
     },
 )
+@limiter.limit(telemetry_events_rate_limit)
 async def ingest_sorting_event(
     payload: SortingEventCreate,
+    request: Request,
     response: Response,
     service: TelemetryService = Depends(get_telemetry_service),
 ) -> SortingEventRead:

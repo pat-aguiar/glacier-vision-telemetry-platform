@@ -12,7 +12,7 @@ dependencies = [
     "pydantic-settings>=2.6",
     "asyncpg>=0.30",
     "alembic>=1.14",
-    "slowapi>=0.1.10",
+    "slowapi==0.1.10",
 ]
 
 [project.optional-dependencies]
