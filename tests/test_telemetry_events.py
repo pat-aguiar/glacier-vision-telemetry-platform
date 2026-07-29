@@ -4,8 +4,9 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
+from app.main import app
 from app.models import Device
 
 ENDPOINT = "/api/v1/telemetry/events"
@@ -53,6 +54,27 @@ async def test_unknown_device_id_returns_400(client: AsyncClient) -> None:
     assert response.status_code == 400
     body = response.json()
     assert body["error"]["code"] == "device_not_found"
+
+
+async def test_missing_api_key_returns_401(device: Device) -> None:
+    # A bare client with no default X-API-Key, unlike the `client` fixture --
+    # this specifically tests the header being entirely absent, not just
+    # wrong (see test_invalid_api_key_returns_401 for that case).
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as bare_client:
+        response = await bare_client.post(ENDPOINT, json=_valid_payload(device.id))
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "invalid_api_key"
+
+
+async def test_invalid_api_key_returns_401(client: AsyncClient, device: Device) -> None:
+    response = await client.post(
+        ENDPOINT, json=_valid_payload(device.id), headers={"X-API-Key": "wrong-key"}
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "invalid_api_key"
 
 
 @pytest.mark.parametrize(

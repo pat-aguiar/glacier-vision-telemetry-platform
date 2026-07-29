@@ -8,6 +8,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
+from app.config import get_settings
 from app.database import get_sessionmaker
 from app.main import app
 from app.models import Device, DeviceStatus, Facility, SortingEvent
@@ -15,8 +16,21 @@ from app.models import Device, DeviceStatus, Facility, SortingEvent
 
 @pytest.fixture
 async def client() -> AsyncIterator[AsyncClient]:
+    """An authenticated client -- sends valid edge/dashboard credentials by
+    default, since most tests exercise behavior other than auth itself.
+    Tests specifically covering missing/invalid credentials override these
+    headers per-request.
+    """
+    settings = get_settings()
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://testserver",
+        headers={
+            "X-API-Key": settings.edge_api_key,
+            "X-Dashboard-Token": settings.dashboard_access_token,
+        },
+    ) as ac:
         yield ac
 
 

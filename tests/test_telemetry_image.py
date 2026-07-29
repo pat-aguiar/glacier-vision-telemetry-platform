@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import uuid
 
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
+from app.main import app
 from app.models import SortingEvent
 
 BOUNDING_BOX_FIELDS = {"label", "confidence", "x_min", "y_min", "x_max", "y_max"}
@@ -61,3 +62,25 @@ async def test_unknown_event_returns_404(client: AsyncClient) -> None:
     assert response.status_code == 404
     body = response.json()
     assert body["error"]["code"] == "sorting_event_not_found"
+
+
+async def test_missing_dashboard_token_returns_401(sorting_event: SortingEvent) -> None:
+    # A bare client with no default X-Dashboard-Token, unlike the `client`
+    # fixture -- this specifically tests the header being entirely absent.
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as bare_client:
+        response = await bare_client.get(_image_url(sorting_event.id))
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "invalid_dashboard_token"
+
+
+async def test_invalid_dashboard_token_returns_401(
+    client: AsyncClient, sorting_event: SortingEvent
+) -> None:
+    response = await client.get(
+        _image_url(sorting_event.id), headers={"X-Dashboard-Token": "wrong-token"}
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "invalid_dashboard_token"
