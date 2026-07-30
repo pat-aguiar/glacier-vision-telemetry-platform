@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 import httpx
 from sqlalchemy import select
 
+from app.config import get_settings
 from app.database import get_sessionmaker
 from app.models import Device, DeviceStatus, Facility
 
@@ -104,11 +105,16 @@ async def run(args: Args) -> None:
     devices = await seed_devices(count=args.devices, facility_slug=args.facility_slug)
     print(f"Seeded {len(devices)} demo device(s) in facility '{args.facility_slug}'.")
 
+    settings = get_settings()
     interval = 1.0 / args.rate if args.rate > 0 else 0.0
     sent = 0
     failed = 0
 
-    async with httpx.AsyncClient(base_url=args.base_url, timeout=5.0) as client:
+    async with httpx.AsyncClient(
+        base_url=args.base_url,
+        timeout=5.0,
+        headers={"X-API-Key": settings.edge_api_key},
+    ) as client:
         try:
             while args.count <= 0 or sent < args.count:
                 device = random.choice(devices)

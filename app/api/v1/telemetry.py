@@ -4,8 +4,9 @@ import uuid
 
 from fastapi import APIRouter, Depends, Request, Response, status
 
-from app.api.deps import get_telemetry_service
+from app.api.deps import get_telemetry_service, verify_dashboard_token, verify_edge_api_key
 from app.mock_vision import MOCK_IMAGE_PATH
+from app.rate_limit import limiter, telemetry_events_rate_limit
 from app.schemas import (
     ErrorResponse,
     SortingEventCreate,
@@ -21,6 +22,7 @@ router = APIRouter()
     "/events",
     response_model=SortingEventRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(verify_edge_api_key)],
     responses={
         status.HTTP_200_OK: {
             "model": SortingEventRead,
@@ -30,10 +32,16 @@ router = APIRouter()
             "model": ErrorResponse,
             "description": "Request failed validation, or device_id does not reference a known device.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
+            "description": "Missing or invalid X-API-Key header.",
+        },
     },
 )
+@limiter.limit(telemetry_events_rate_limit)
 async def ingest_sorting_event(
     payload: SortingEventCreate,
+    request: Request,
     response: Response,
     service: TelemetryService = Depends(get_telemetry_service),
 ) -> SortingEventRead:
@@ -45,7 +53,12 @@ async def ingest_sorting_event(
 @router.get(
     "/events/{event_id}/image",
     response_model=TelemetryEventImageRead,
+    dependencies=[Depends(verify_dashboard_token)],
     responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
+            "description": "Missing or invalid X-Dashboard-Token header.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
             "description": "No sorting event exists with the given id.",

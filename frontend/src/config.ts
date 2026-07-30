@@ -44,3 +44,12 @@ function getApiBaseUrl(): string {
 }
 
 export const API_BASE_URL = getApiBaseUrl()
+
+/**
+ * Dashboard auth token, baked into the bundle at build time (see
+ * frontend/Dockerfile) since the browser has no other way to obtain it.
+ * Sent as the `X-Dashboard-Token` header on HTTP requests and as a
+ * `?token=` query param on the WebSocket connection (browsers can't set
+ * custom headers on a WS handshake).
+ */
+export const DASHBOARD_ACCESS_TOKEN = import.meta.env.VITE_DASHBOARD_ACCESS_TOKEN ?? ""

@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.exceptions import register_exception_handlers
 from app.api.v1.router import api_router
 from app.middleware import BodySizeLimitMiddleware
+from app.rate_limit import limiter
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -39,6 +40,7 @@ def _openapi_without_422(app: FastAPI):
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="Glacier Vision Telemetry Platform")
+    app.state.limiter = limiter
 
     app.add_middleware(
         CORSMiddleware,

@@ -27,6 +27,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://telemetry:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file (see .env.example)}@db:5432/telemetry
       CORS_ALLOW_ORIGINS: '["http://localhost:3000"]'
+      EDGE_API_KEY: ${EDGE_API_KEY:?Set EDGE_API_KEY in your .env file (see .env.example)}
+      DASHBOARD_ACCESS_TOKEN: ${DASHBOARD_ACCESS_TOKEN:?Set DASHBOARD_ACCESS_TOKEN in your .env file (see .env.example)}
 
   frontend:
     # No VITE_API_BASE_URL / VITE_TELEMETRY_STREAM_URL build args: nginx
@@ -36,9 +38,15 @@ services:
     # are unset in a production build. Baking in an absolute host here would
     # only work when accessed via this exact hostname/port -- see the
     # docker-compose.yml git history for why that broke portability.
+    #
+    # VITE_DASHBOARD_ACCESS_TOKEN *is* passed, unlike those -- it has to be
+    # baked into the bundle so the browser can send it back to the backend;
+    # it's not a host/URL that the same-origin runtime fallback can derive.
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_DASHBOARD_ACCESS_TOKEN: ${DASHBOARD_ACCESS_TOKEN:?Set DASHBOARD_ACCESS_TOKEN in your .env file (see .env.example)}
     container_name: glacier-vision-frontend
     restart: unless-stopped
     depends_on:

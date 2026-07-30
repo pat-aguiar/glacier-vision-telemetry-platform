@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { API_BASE_URL } from "../config"
+import { API_BASE_URL, DASHBOARD_ACCESS_TOKEN } from "../config"
 import type { TelemetryEventImage } from "../telemetry/types"
 
 export type EventImageState =
@@ -18,6 +18,7 @@ async function fetchEventImage(
 ): Promise<TelemetryEventImage> {
   const response = await fetch(`${API_BASE_URL}/api/v1/telemetry/events/${eventId}/image`, {
     signal,
+    headers: { "X-Dashboard-Token": DASHBOARD_ACCESS_TOKEN },
   })
 
   if (!response.ok) {

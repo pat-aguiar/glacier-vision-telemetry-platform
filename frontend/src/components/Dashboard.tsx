@@ -6,11 +6,17 @@ import { StatTiles } from "./StatTiles"
 import { RealTimeChart } from "./RealTimeChart"
 import { EventLogTable } from "./EventLogTable"
 import { ImageInspector } from "./ImageInspector"
-import { TELEMETRY_STREAM_URL } from "../config"
+import { DASHBOARD_ACCESS_TOKEN, TELEMETRY_STREAM_URL } from "../config"
 import type { TelemetryEvent } from "../telemetry/types"
 
 const WINDOW_MS = 5 * 60_000
 const THROTTLE_MS = 300
+
+function withToken(streamUrl: string, token: string): string {
+  const url = new URL(streamUrl)
+  url.searchParams.set("token", token)
+  return url.toString()
+}
 
 const STATUS_STYLES: Record<ConnectionStatus, string> = {
   open: "bg-green-500",
@@ -43,12 +49,15 @@ export function Dashboard() {
     THROTTLE_MS,
   )
 
-  const status = useWebSocketStream<TelemetryEvent>(TELEMETRY_STREAM_URL, {
-    onMessage: (event) => {
-      buffer.push(event)
-      setEvents(buffer.getAll())
+  const status = useWebSocketStream<TelemetryEvent>(
+    withToken(TELEMETRY_STREAM_URL, DASHBOARD_ACCESS_TOKEN),
+    {
+      onMessage: (event) => {
+        buffer.push(event)
+        setEvents(buffer.getAll())
+      },
     },
-  })
+  )
 
   // Forces a render on the same cadence even without new messages, so the
   // window visibly decays (old events drop off) during quiet periods
