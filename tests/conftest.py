@@ -12,26 +12,39 @@ from app.config import get_settings
 from app.database import get_sessionmaker
 from app.main import app
 from app.models import Device, DeviceStatus, Facility, SortingEvent
+from app.rate_limit import limiter
 
 
 @pytest.fixture
 async def client() -> AsyncIterator[AsyncClient]:
-    """An authenticated client -- sends valid edge/dashboard credentials by
-    default, since most tests exercise behavior other than auth itself.
-    Tests specifically covering missing/invalid credentials override these
-    headers per-request.
+    """A bare, unauthenticated client. Tests that need auth pass
+    `edge_api_key_headers` / `dashboard_token_headers` explicitly per
+    request, so it's visible at each call site which credential is in play.
     """
-    settings = get_settings()
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-        transport=transport,
-        base_url="http://testserver",
-        headers={
-            "X-API-Key": settings.edge_api_key,
-            "X-Dashboard-Token": settings.dashboard_access_token,
-        },
-    ) as ac:
+    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
+
+
+@pytest.fixture
+def edge_api_key_headers() -> dict[str, str]:
+    return {"X-API-Key": get_settings().edge_api_key}
+
+
+@pytest.fixture
+def dashboard_token_headers() -> dict[str, str]:
+    return {"X-Dashboard-Token": get_settings().dashboard_access_token}
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter() -> None:
+    """The limiter's in-memory counters persist for the life of the process,
+    not per-test -- without resetting, ingestion tests would eventually
+    start tripping the real rate limit just from running the suite enough
+    times, unrelated to whatever test_rate_limit_exceeded_returns_429 itself
+    is doing.
+    """
+    limiter.reset()
 
 
 @pytest.fixture

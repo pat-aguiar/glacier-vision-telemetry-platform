@@ -31,17 +31,16 @@ def _valid_payload(device_id: uuid.UUID, **overrides: object) -> dict:
     return payload
 
 
-def _authenticated_ws_client() -> AsyncClient:
+def _authenticated_ws_client(edge_api_key_headers: dict[str, str]) -> AsyncClient:
     """A client with a valid X-API-Key default, for POSTing events that the
     stream should broadcast. Its own connection to the stream still needs
     an explicit `?token=` query param, since that's checked separately from
     this header.
     """
-    settings = get_settings()
     return AsyncClient(
         transport=ASGIWebSocketTransport(app=app),
         base_url="http://testserver",
-        headers={"X-API-Key": settings.edge_api_key},
+        headers=edge_api_key_headers,
     )
 
 
@@ -51,8 +50,10 @@ def _stream_url(*, token: str | None) -> str:
     return f"{STREAM_ENDPOINT}?token={token}"
 
 
-async def test_disallowed_origin_is_rejected_at_handshake() -> None:
-    async with _authenticated_ws_client() as ws_client:
+async def test_disallowed_origin_is_rejected_at_handshake(
+    edge_api_key_headers: dict[str, str],
+) -> None:
+    async with _authenticated_ws_client(edge_api_key_headers) as ws_client:
         with pytest.raises(WebSocketDisconnect) as exc_info:
             async with aconnect_ws(
                 _stream_url(token=get_settings().dashboard_access_token),
@@ -64,8 +65,10 @@ async def test_disallowed_origin_is_rejected_at_handshake() -> None:
         assert exc_info.value.code == 1008
 
 
-async def test_missing_origin_is_rejected_at_handshake() -> None:
-    async with _authenticated_ws_client() as ws_client:
+async def test_missing_origin_is_rejected_at_handshake(
+    edge_api_key_headers: dict[str, str],
+) -> None:
+    async with _authenticated_ws_client(edge_api_key_headers) as ws_client:
         with pytest.raises(WebSocketDisconnect) as exc_info:
             async with aconnect_ws(
                 _stream_url(token=get_settings().dashboard_access_token), ws_client
@@ -75,8 +78,10 @@ async def test_missing_origin_is_rejected_at_handshake() -> None:
         assert exc_info.value.code == 1008
 
 
-async def test_missing_token_is_rejected_at_handshake() -> None:
-    async with _authenticated_ws_client() as ws_client:
+async def test_stream_missing_token_closes_connection(
+    edge_api_key_headers: dict[str, str],
+) -> None:
+    async with _authenticated_ws_client(edge_api_key_headers) as ws_client:
         with pytest.raises(WebSocketDisconnect) as exc_info:
             async with aconnect_ws(
                 _stream_url(token=None), ws_client, headers={"origin": ALLOWED_ORIGIN}
@@ -86,8 +91,10 @@ async def test_missing_token_is_rejected_at_handshake() -> None:
         assert exc_info.value.code == 1008
 
 
-async def test_invalid_token_is_rejected_at_handshake() -> None:
-    async with _authenticated_ws_client() as ws_client:
+async def test_stream_invalid_token_closes_connection(
+    edge_api_key_headers: dict[str, str],
+) -> None:
+    async with _authenticated_ws_client(edge_api_key_headers) as ws_client:
         with pytest.raises(WebSocketDisconnect) as exc_info:
             async with aconnect_ws(
                 _stream_url(token="wrong-token"),
@@ -99,8 +106,10 @@ async def test_invalid_token_is_rejected_at_handshake() -> None:
         assert exc_info.value.code == 1008
 
 
-async def test_successful_insert_is_delivered_to_subscriber(device: Device) -> None:
-    async with _authenticated_ws_client() as ws_client:
+async def test_successful_insert_is_delivered_to_subscriber(
+    edge_api_key_headers: dict[str, str], device: Device
+) -> None:
+    async with _authenticated_ws_client(edge_api_key_headers) as ws_client:
         async with aconnect_ws(
             _stream_url(token=get_settings().dashboard_access_token),
             ws_client,
@@ -114,10 +123,12 @@ async def test_successful_insert_is_delivered_to_subscriber(device: Device) -> N
             assert delivered["device_id"] == str(device.id)
 
 
-async def test_idempotent_replay_is_not_rebroadcast(device: Device) -> None:
+async def test_idempotent_replay_is_not_rebroadcast(
+    edge_api_key_headers: dict[str, str], device: Device
+) -> None:
     payload = _valid_payload(device.id)
 
-    async with _authenticated_ws_client() as ws_client:
+    async with _authenticated_ws_client(edge_api_key_headers) as ws_client:
         async with aconnect_ws(
             _stream_url(token=get_settings().dashboard_access_token),
             ws_client,
@@ -139,8 +150,10 @@ async def test_idempotent_replay_is_not_rebroadcast(device: Device) -> None:
             assert (await ws.receive_json())["id"] == canary.json()["id"]
 
 
-async def test_multiple_subscribers_all_receive_the_broadcast(device: Device) -> None:
-    async with _authenticated_ws_client() as ws_client:
+async def test_multiple_subscribers_all_receive_the_broadcast(
+    edge_api_key_headers: dict[str, str], device: Device
+) -> None:
+    async with _authenticated_ws_client(edge_api_key_headers) as ws_client:
         stream_url = _stream_url(token=get_settings().dashboard_access_token)
         async with (
             aconnect_ws(stream_url, ws_client, headers={"origin": ALLOWED_ORIGIN}) as ws_a,

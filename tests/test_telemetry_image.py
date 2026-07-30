@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import uuid
 
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 
-from app.main import app
 from app.models import SortingEvent
 
 BOUNDING_BOX_FIELDS = {"label", "confidence", "x_min", "y_min", "x_max", "y_max"}
@@ -15,9 +14,9 @@ def _image_url(event_id: uuid.UUID) -> str:
 
 
 async def test_get_image_returns_200_with_expected_structure(
-    client: AsyncClient, sorting_event: SortingEvent
+    client: AsyncClient, dashboard_token_headers: dict[str, str], sorting_event: SortingEvent
 ) -> None:
-    response = await client.get(_image_url(sorting_event.id))
+    response = await client.get(_image_url(sorting_event.id), headers=dashboard_token_headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -34,9 +33,9 @@ async def test_get_image_returns_200_with_expected_structure(
 
 
 async def test_bounding_box_coordinates_are_within_0_1(
-    client: AsyncClient, sorting_event: SortingEvent
+    client: AsyncClient, dashboard_token_headers: dict[str, str], sorting_event: SortingEvent
 ) -> None:
-    response = await client.get(_image_url(sorting_event.id))
+    response = await client.get(_image_url(sorting_event.id), headers=dashboard_token_headers)
     boxes = response.json()["bounding_boxes"]
 
     assert len(boxes) >= 1
@@ -47,29 +46,32 @@ async def test_bounding_box_coordinates_are_within_0_1(
 
 
 async def test_repeated_requests_are_deterministic(
-    client: AsyncClient, sorting_event: SortingEvent
+    client: AsyncClient, dashboard_token_headers: dict[str, str], sorting_event: SortingEvent
 ) -> None:
-    first = await client.get(_image_url(sorting_event.id))
-    second = await client.get(_image_url(sorting_event.id))
+    first = await client.get(_image_url(sorting_event.id), headers=dashboard_token_headers)
+    second = await client.get(_image_url(sorting_event.id), headers=dashboard_token_headers)
 
     assert first.status_code == second.status_code == 200
     assert first.json() == second.json()
 
 
-async def test_unknown_event_returns_404(client: AsyncClient) -> None:
-    response = await client.get(_image_url(uuid.uuid4()))
+async def test_unknown_event_returns_404(
+    client: AsyncClient, dashboard_token_headers: dict[str, str]
+) -> None:
+    response = await client.get(_image_url(uuid.uuid4()), headers=dashboard_token_headers)
 
     assert response.status_code == 404
     body = response.json()
     assert body["error"]["code"] == "sorting_event_not_found"
 
 
-async def test_missing_dashboard_token_returns_401(sorting_event: SortingEvent) -> None:
-    # A bare client with no default X-Dashboard-Token, unlike the `client`
-    # fixture -- this specifically tests the header being entirely absent.
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as bare_client:
-        response = await bare_client.get(_image_url(sorting_event.id))
+async def test_missing_dashboard_token_returns_401(
+    client: AsyncClient, sorting_event: SortingEvent
+) -> None:
+    # `client` sends no credentials at all now -- this is the "header
+    # entirely absent" case; see test_invalid_dashboard_token_returns_401
+    # for wrong.
+    response = await client.get(_image_url(sorting_event.id))
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "invalid_dashboard_token"
