@@ -26,7 +26,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://telemetry:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file (see .env.example)}@db:5432/telemetry
-      CORS_ALLOW_ORIGINS: '["http://localhost:3000","http://23.20.203.22:3000"]'
+      CORS_ALLOW_ORIGINS: '["http://localhost:3000","http://23.20.203.22:3000","http://23.20.203.22","https://ec2-23-20-203-22.compute-1.amazonaws.com"]'
       EDGE_API_KEY: ${EDGE_API_KEY:?Set EDGE_API_KEY in your .env file (see .env.example)}
       DASHBOARD_ACCESS_TOKEN: ${DASHBOARD_ACCESS_TOKEN:?Set DASHBOARD_ACCESS_TOKEN in your .env file (see .env.example)}
 
