@@ -26,9 +26,32 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://telemetry:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file (see .env.example)}@db:5432/telemetry
-      CORS_ALLOW_ORIGINS: '["http://localhost:3000"]'
+      CORS_ALLOW_ORIGINS: '["http://localhost:3000","http://23.20.203.22:3000"]'
       EDGE_API_KEY: ${EDGE_API_KEY:?Set EDGE_API_KEY in your .env file (see .env.example)}
       DASHBOARD_ACCESS_TOKEN: ${DASHBOARD_ACCESS_TOKEN:?Set DASHBOARD_ACCESS_TOKEN in your .env file (see .env.example)}
+
+  mock_generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: glacier-vision-mock-generator
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://telemetry:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file (see .env.example)}@db:5432/telemetry
+      EDGE_API_KEY: ${EDGE_API_KEY:?Set EDGE_API_KEY in your .env file (see .env.example)}
+    volumes:
+      - ./scripts:/app/scripts:ro
+    entrypoint:
+      [
+        "python", "scripts/mock_event_generator.py",
+        "--base-url", "http://backend:8000",
+        "--devices", "3",
+        "--rate", "0.3",
+        "--count", "0",
+      ]
 
   frontend:
     # No VITE_API_BASE_URL / VITE_TELEMETRY_STREAM_URL build args: nginx
