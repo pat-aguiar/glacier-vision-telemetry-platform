@@ -42,6 +42,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://telemetry:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file (see .env.example)}@db:5432/telemetry
       EDGE_API_KEY: ${EDGE_API_KEY:?Set EDGE_API_KEY in your .env file (see .env.example)}
+      DASHBOARD_ACCESS_TOKEN: ${DASHBOARD_ACCESS_TOKEN:?Set DASHBOARD_ACCESS_TOKEN in your .env file (see .env.example)}
     command:
       [
         "--base-url", "http://backend:8000",
