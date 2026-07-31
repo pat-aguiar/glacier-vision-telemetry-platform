@@ -33,7 +33,7 @@ services:
   mock_generator:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: scripts/Dockerfile
     container_name: glacier-vision-mock-generator
     restart: unless-stopped
     depends_on:
@@ -42,11 +42,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://telemetry:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file (see .env.example)}@db:5432/telemetry
       EDGE_API_KEY: ${EDGE_API_KEY:?Set EDGE_API_KEY in your .env file (see .env.example)}
-    volumes:
-      - ./scripts:/app/scripts:ro
-    entrypoint:
+    command:
       [
-        "python", "scripts/mock_event_generator.py",
         "--base-url", "http://backend:8000",
         "--devices", "3",
         "--rate", "0.3",
