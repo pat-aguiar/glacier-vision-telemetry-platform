@@ -1,6 +1,6 @@
-# Glacier Vision Telemetry Platform
+# Vision Telemetry Platform
 
-A real-time telemetry ingestion and monitoring platform for AI-powered material-sorting hardware. Edge computer-vision devices at recycling/sorting facilities report classification events (material type, confidence score, bounding boxes) to a FastAPI backend, which persists them to a partitioned Postgres store and streams them live to a React dashboard over WebSockets.
+A real-time telemetry ingestion and monitoring platform for AI-powered edge computer-vision hardware. Edge devices report classification events (label, confidence score, bounding boxes) to a FastAPI backend, which persists them to a partitioned Postgres store and streams them live to a React dashboard over WebSockets.
 
 **Live demo:** https://23-20-203-22.sslip.io/
 **Repository:** https://github.com/pat-aguiar/glacier-vision-telemetry-platform
@@ -12,14 +12,14 @@ A real-time telemetry ingestion and monitoring platform for AI-powered material-
 ## Features
 
 - **Idempotent event ingestion** — edge devices with unreliable network connections can safely retry a POST; duplicate `event_id`s are detected and replayed as a 200 instead of creating a second row.
-- **Live dashboard streaming** — a WebSocket pub/sub broadcaster pushes every new sorting event to all connected dashboard clients in real time, with origin validation and token auth at the handshake.
+- **Live dashboard streaming** — a WebSocket pub/sub broadcaster pushes every new telemetry event to all connected dashboard clients in real time, with origin validation and token auth at the handshake.
 - **Resilient frontend connection handling** — the dashboard's WebSocket client auto-reconnects on drop with exponential backoff and jitter, and visibly surfaces connection state (connected / reconnecting / disconnected) rather than failing silently.
 - **Partitioned, time-series-ready schema** — `sorting_events` is a native Postgres table partitioned by `occurred_at`, with facility/device-scoped indexes so both dashboard queries and future partition pruning stay cheap as volume grows.
 - **Dual authentication model** — a constant-time-compared `X-API-Key` for edge devices submitting events, and a separate `X-Dashboard-Token` (plus WebSocket query-param token) for read/dashboard clients, so ingestion and read credentials can be rotated independently.
 - **Defense-in-depth request handling** — a custom ASGI middleware enforces a request body size ceiling (checked both via `Content-Length` and as bytes stream in, so chunked encoding can't bypass it), and ingestion is rate-limited per client.
 - **Consistent error contract** — a single `AppError` hierarchy and global exception handlers normalize every failure (validation, not-found, conflict, rate limit) into one JSON error envelope, so API consumers never have to branch on error shape.
 - **Layered backend architecture** — routes depend only on injected services, services depend only on injected repositories/collaborators, matching FastAPI's own `Depends()`-based DI pattern end-to-end rather than routes reaching into the database or singletons directly.
-- **Mock vision provider** — deterministic, seeded bounding-box/material generation stands in for a real inference pipeline, so the full ingestion → storage → dashboard path is demonstrable without physical edge hardware.
+- **Mock vision provider** — deterministic, seeded bounding-box/label generation stands in for a real inference pipeline, so the full ingestion → storage → dashboard path is demonstrable without physical edge hardware.
 
 ## Architecture
 
@@ -104,7 +104,7 @@ Full interactive documentation is available at `/docs` (Swagger) once the backen
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/v1/telemetry/events` | `X-API-Key` | Ingest a sorting event (idempotent on `event_id`) |
+| `POST` | `/api/v1/telemetry/events` | `X-API-Key` | Ingest a telemetry event (idempotent on `event_id`) |
 | `GET` | `/api/v1/telemetry/events/{id}/image` | `X-Dashboard-Token` | Fetch the captured frame + bounding boxes for an event |
 | `WS` | `/api/v1/telemetry/stream?token=...` | Dashboard token (query param) | Live feed of newly ingested events |
 
